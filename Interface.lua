@@ -256,9 +256,13 @@ function Interface:Init(Window, WindUI, Data)
         end
     })
 
-    RefreshNoteList()
-    RefreshEditor()
-    RefreshSnippets()
+    task.spawn(function()
+        task.wait(0.5)
+        RefreshNoteList()
+        RefreshEditor()
+        RefreshSnippets()
+        Window:SetTheme(State.Theme)
+    end)
 end
 
 return Interface
