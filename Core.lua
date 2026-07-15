@@ -1,93 +1,25 @@
 local Players = game:GetService("Players")
-
 local Player = Players.LocalPlayer
-
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
-
-
-if PlayerGui:FindFirstChild("WindNotepad_Gui") then
-  
-    return
-  
+if PlayerGui:FindFirstChild("Notepad_Session") then
+    return nil
 end
 
+local session = Instance.new("Folder")
+session.Name = "Notepad_Session"
+session.Parent = PlayerGui
 
-
-local WindUI
-
-local success, err = pcall(function()
-    
-    WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-    
-  end)
-
-
-
-if not success or not WindUI then
-  
-    return
-  
-end
-
-
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    
     Title = "Notepad",
-    
-    Author = "v1.0.0",
-    
     Icon = "lucide:edit-3",
-    
-    Theme = "Dark",
-    
-    Folder = "WindNotepadPro",
-    
-    Acrylic = true,
-    
+    Author = "v1.1.0",
+    Folder = "Notepad_Pro",
+    Size = UDim2.fromOffset(580, 460),
     Transparent = true,
-    
-    Resizable = true,
-    
-    MinSize = Vector2.new(700, 500),
-    
-    User = {
-      
-        Name = Player.Name,
-      
-        Title = "Premium User",
-      
-        Icon = "lucide:user"
-      
-    }
-    
-  })
+    Acrylic = true
+})
 
-
-
-Window.Gui.Name = "WindNotepad_Gui"
-
-
-
-return Window, WindUI
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+return {Window = Window, WindUI = WindUI}
