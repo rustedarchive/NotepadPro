@@ -1,24 +1,23 @@
-local function LoadCog(name, url)
+local function LoadCog(url)
     local success, cog = pcall(function()
         return loadstring(game:HttpGet(url))()
     end)
-    if not success or not cog then
-        warn("Failed to load cog: " .. name)
-        return nil
-    end
-    return cog
+    return success and cog or nil
 end
 
 local BaseUrl = "https://raw.githubusercontent.com/rustedarchive/NotepadPro/main/"
 
-local Window, WindUI = LoadCog("Core", BaseUrl .. "Core.lua")
-if not Window then return end
+local Core = LoadCog(BaseUrl .. "Core.lua")
+if not Core then warn("Notepad: Core failed to load.") return end
 
-local Data = LoadCog("Data", BaseUrl .. "Data.lua")
-if not Data then return end
+local Window, WindUI = Core.Window, Core.WindUI
+if not Window or not WindUI then warn("Notepad: Window init failed.") return end
 
-local Interface = LoadCog("Interface", BaseUrl .. "Interface.lua")
-if not Interface then return end
+local Data = LoadCog(BaseUrl .. "Data.lua")
+if not Data then warn("Notepad: Data failed to load.") return end
+
+local Interface = LoadCog(BaseUrl .. "Interface.lua")
+if not Interface then warn("Notepad: Interface failed to load.") return end
 
 Data:Load()
 Interface:Init(Window, WindUI, Data)
