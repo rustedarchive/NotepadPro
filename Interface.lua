@@ -15,6 +15,11 @@ function Interface:Init(Window, WindUI, Data)
         Icon = "lucide:edit-3"
     })
 
+    local SnippetTab = Window:Tab({
+        Title = "Snippets",
+        Icon = "lucide:zap"
+    })
+
     local SettingsTab = Window:Tab({
         Title = "Settings",
         Icon = "lucide:settings"
@@ -32,15 +37,16 @@ function Interface:Init(Window, WindUI, Data)
                     Id = id,
                     Title = "Untitled Note",
                     Content = "",
-                    Category = "General",
                     Favorite = false,
+                    IsChecklist = false,
+                    Tasks = {},
                     LastEdited = os.time()
                 })
                 Data:Save()
                 RefreshNoteList()
                 WindUI:Notify({
                     Title = "Note Created",
-                    Content = "A new note has been added to your collection.",
+                    Content = "A new note has been added.",
                     Icon = "lucide:plus",
                     Duration = 2
                 })
@@ -58,10 +64,8 @@ function Interface:Init(Window, WindUI, Data)
         
         HomeTab:Space()
         
-        local foundAny = false
         for i, note in ipairs(State.Notes) do
             if State.SearchQuery == "" or note.Title:lower():find(State.SearchQuery) then
-                foundAny = true
                 HomeTab:Button({
                     Title = note.Title,
                     Icon = note.Favorite and "lucide:star" or "lucide:file-text",
@@ -72,10 +76,6 @@ function Interface:Init(Window, WindUI, Data)
                     end
                 })
             end
-        end
-        
-        if not foundAny and State.SearchQuery ~= "" then
-            HomeTab:Label({ Title = "No notes match your search." })
         end
     end
 
@@ -91,7 +91,7 @@ function Interface:Init(Window, WindUI, Data)
         end
         
         if not currentNote then
-            EditorTab:Label({ Title = "No note selected. Select a note from 'My Notes' to begin editing." })
+            EditorTab:Label({ Title = "No note selected." })
             return
         end
         
@@ -108,64 +108,77 @@ function Interface:Init(Window, WindUI, Data)
         })
         
         EditorTab:Space()
-        
-        EditorTab:Input({
-            Title = "Note Content",
-            Value = currentNote.Content,
-            Placeholder = "Start typing...",
-            Callback = function(val)
-                currentNote.Content = val
-                currentNote.LastEdited = os.time()
-                Data:Save()
-            end
-        })
-        
-        EditorTab:Space()
-        
+
         EditorTab:Toggle({
-            Title = "Mark as Favorite",
-            Value = currentNote.Favorite,
+            Title = "Checklist Mode",
+            Value = currentNote.IsChecklist,
             Callback = function(state)
-                currentNote.Favorite = state
+                currentNote.IsChecklist = state
                 Data:Save()
-                RefreshNoteList()
-            end
-        })
-        
-        EditorTab:Button({
-            Title = "Duplicate This Note",
-            Icon = "lucide:copy-plus",
-            Callback = function()
-                local id = game:GetService("HttpService"):GenerateGUID(false)
-                table.insert(State.Notes, 1, {
-                    Id = id,
-                    Title = currentNote.Title .. " (Copy)",
-                    Content = currentNote.Content,
-                    Category = currentNote.Category,
-                    Favorite = currentNote.Favorite,
-                    LastEdited = os.time()
-                })
-                Data:Save()
-                RefreshNoteList()
-                WindUI:Notify({
-                    Title = "Duplicated",
-                    Content = "Note duplicated successfully.",
-                    Icon = "lucide:copy",
-                    Duration = 2
-                })
+                RefreshEditor()
             end
         })
 
+        if currentNote.IsChecklist then
+            EditorTab:Button({
+                Title = "Add Task",
+                Icon = "lucide:check-square",
+                Callback = function()
+                    table.insert(currentNote.Tasks, {Text = "New Task", Done = false})
+                    Data:Save()
+                    RefreshEditor()
+                end
+            })
+
+            for i, task in ipairs(currentNote.Tasks) do
+                EditorTab:Input({
+                    Title = "Task " .. i,
+                    Value = task.Text,
+                    Callback = function(val)
+                        task.Text = val
+                        Data:Save()
+                    end
+                })
+                EditorTab:Toggle({
+                    Title = "Task " .. i .. " Done",
+                    Value = task.Done,
+                    Callback = function(state)
+                        task.Done = state
+                        Data:Save()
+                    end
+                })
+            end
+        else
+            EditorTab:Input({
+                Title = "Note Content",
+                Value = currentNote.Content,
+                Placeholder = "Start typing...",
+                Callback = function(val)
+                    currentNote.Content = val
+                    currentNote.LastEdited = os.time()
+                    Data:Save()
+                end
+            })
+        end
+        
+        EditorTab:Space()
+        
         EditorTab:Button({
             Title = "Send to Game Chat",
             Icon = "lucide:send",
             Callback = function()
-                if currentNote.Content ~= "" then
+                local text = currentNote.Content
+                if currentNote.IsChecklist then
+                    text = "[Checklist] " .. currentNote.Title .. ": "
+                    for _, t in ipairs(currentNote.Tasks) do
+                        text = text .. (t.Done and "[X] " or "[ ] ") .. t.Text .. ", "
+                    end
+                end
+                if text ~= "" then
                     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-                        local channel = TextChatService.TextChannels.RBXGeneral
-                        channel:SendAsync(currentNote.Content)
+                        TextChatService.TextChannels.RBXGeneral:SendAsync(text)
                     else
-                        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(currentNote.Content, "All")
+                        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(text, "All")
                     end
                 end
             end
@@ -186,35 +199,53 @@ function Interface:Init(Window, WindUI, Data)
                 RefreshNoteList()
                 RefreshEditor()
                 Window:SelectTab(HomeTab)
-                WindUI:Notify({
-                    Title = "Note Deleted",
-                    Content = "The note has been removed.",
-                    Icon = "lucide:trash",
-                    Duration = 2
-                })
             end
         })
     end
 
-    SettingsTab:Dropdown({
-        Title = "Interface Theme",
-        Values = {"Dark", "Light", "Rose", "Plant", "Indigo", "Sky", "Violet", "Amber"},
-        Value = "Dark",
-        Callback = function(val)
-            Window:SetTheme(val)
+    local function RefreshSnippets()
+        SnippetTab:Clear()
+        for i, snippet in ipairs(State.Snippets) do
+            SnippetTab:Button({
+                Title = snippet.Name,
+                Icon = "lucide:zap",
+                Callback = function()
+                    local currentNote = nil
+                    for _, note in ipairs(State.Notes) do
+                        if note.Id == State.CurrentNoteId then
+                            currentNote = note
+                            break
+                        end
+                    end
+                    if currentNote and not currentNote.IsChecklist then
+                        currentNote.Content = currentNote.Content .. snippet.Content
+                        Data:Save()
+                        RefreshEditor()
+                        WindUI:Notify({
+                            Title = "Snippet Inserted",
+                            Content = "Inserted '" .. snippet.Name .. "'",
+                            Icon = "lucide:zap",
+                            Duration = 2
+                        })
+                    end
+                end
+            })
         end
-    })
+    end
 
-    SettingsTab:Toggle({
-        Title = "Background Auto-Save",
-        Value = true,
-        Callback = function(state)
-            State.AutoSave = state
+    SettingsTab:Dropdown({
+        Title = "Theme",
+        Values = {"Dark", "Light", "Rose", "Plant", "Indigo", "Sky", "Violet", "Amber"},
+        Value = State.Theme,
+        Callback = function(val)
+            State.Theme = val
+            Window:SetTheme(val)
+            Data:Save()
         end
     })
 
     SettingsTab:Button({
-        Title = "Clear All Local Data",
+        Title = "Wipe All Data",
         Icon = "lucide:alert-octagon",
         Callback = function()
             State.Notes = {}
@@ -222,26 +253,12 @@ function Interface:Init(Window, WindUI, Data)
             Data:Save()
             RefreshNoteList()
             RefreshEditor()
-            WindUI:Notify({
-                Title = "Data Cleared",
-                Content = "All local notes have been wiped.",
-                Icon = "lucide:refresh-ccw",
-                Duration = 5
-            })
         end
     })
 
     RefreshNoteList()
     RefreshEditor()
-
-    task.spawn(function()
-        while true do
-            task.wait(30)
-            if State.AutoSave then
-                Data:Save()
-            end
-        end
-    end)
+    RefreshSnippets()
 end
 
 return Interface
