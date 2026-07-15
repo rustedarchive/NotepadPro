@@ -8,7 +8,6 @@ Data.State = {
     SearchQuery = "",
     AutoSave = true,
     Theme = "Dark",
-    FontSize = 14,
     Snippets = {
         {Name = "Greeting", Content = "Hello, I hope you are having a great day!"},
         {Name = "Discord", Content = "My Discord is: "},
