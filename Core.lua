@@ -1,10 +1,6 @@
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-
-if PlayerGui:FindFirstChild("NotepadPro_Gui") then
-    return nil
-end
+local getgenv = getgenv or function() return _G end
+if getgenv().NotepadRunning then return end
+getgenv().NotepadRunning = true
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
@@ -13,12 +9,19 @@ local Window = WindUI:CreateWindow({
     Author = "v1.1.0",
     Icon = "lucide:edit-3",
     Theme = "Dark",
-    Folder = "NotepadPro",
+    Folder = "Notepad_Pro",
     Acrylic = true,
-    Transparent = true,
-    Size = UDim2.fromOffset(600, 480)
+    Size = UDim2.fromOffset(580, 420)
 })
 
-Window.Gui.Name = "NotepadPro_Gui"
+if syn and syn.protect_gui then
+    syn.protect_gui(Window.Instance)
+end
 
-return {Window = Window, WindUI = WindUI}
+local Core = {
+    Window = Window,
+    WindUI = WindUI,
+    IsReady = true
+}
+
+return Core
